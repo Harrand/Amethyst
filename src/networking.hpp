@@ -14,6 +14,14 @@ namespace am::net
             TCP, UDP
         };
     }
+
+    namespace internet
+    {
+        enum class protocol
+        {
+            IPV4, IPV6
+        };
+    }
 }
 
 #endif //AMETHYST_NETWORKING_HPP

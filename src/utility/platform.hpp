@@ -13,6 +13,9 @@
     #define AMETHYST_UNIX
     #include <sys/socket.h>
     #include <unistd.h>
+    #include <errno.h>
+#else
+    static_assert(false, "Amethyst does not detect to be running under Windows nor Linux. Thus, compilation must abort.");
 #endif
 
 #ifdef AMETHYST_DEBUG

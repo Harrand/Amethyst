@@ -9,7 +9,8 @@ add_library(amethyst SHARED
         src/socket.inl
         src/utility/platform.hpp
         src/amethyst.hpp
-        src/amethyst.inl src/networking.hpp)
+        src/amethyst.inl
+        src/networking.hpp)
 if(WIN32)
     target_link_libraries(amethyst wsock32 ws2_32)
 endif(WIN32)

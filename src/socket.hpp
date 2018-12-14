@@ -4,23 +4,25 @@
 
 #ifndef AMETHYST_SOCKET_HPP
 #define AMETHYST_SOCKET_HPP
-#include "amethyst.hpp"
+#include "utility/platform.hpp"
 #include "networking.hpp"
-
-bool am::detail::is_initialised = false;
 
 struct SocketDescriptor
 {
-    SocketDescriptor(am::net::transmission::protocol transmission_protocol = am::net::transmission::protocol::TCP);
+    SocketDescriptor(am::net::transmission::protocol transmission_protocol = am::net::transmission::protocol::TCP, am::net::internet::protocol ip = am::net::internet::protocol::IPV4);
     am::net::transmission::protocol transmission_protocol;
+    am::net::internet::protocol internet_protocol;
 };
 
 class ISocket
 {
 public:
     ISocket(SocketDescriptor descriptor);
-private:
+    const SocketDescriptor& get_info() const;
+    virtual bool bind(unsigned int port) = 0;
+protected:
     SocketDescriptor descriptor;
+    bool bound;
 };
 
 #ifdef AMETHYST_WINDOWS
@@ -28,6 +30,9 @@ private:
     {
     public:
         SocketWindows(SocketDescriptor descriptor);
+        virtual bool bind(unsigned int port) override;
+    private:
+        SOCKET socket_handle;
     };
     using Socket = SocketWindows;
 #elif AMETHYST_UNIX
@@ -35,6 +40,9 @@ private:
     {
     public:
         SocketUnix(SocketDescriptor descriptor);
+        virtual bool bind(unsigned int port) override;
+    private:
+        int socket_handle;
     };
     using Socket = SocketUnix;
 #endif
