@@ -83,7 +83,50 @@ const SocketDescriptor& ISocket::get_info() const
         if(result == -1)
         {
             std::cerr << "SocketWindows::bind(...) produced error code " << WSAGetLastError() << "\n";
+            return false;
         }
+        this->bound = true;
+        return true;
+    }
+
+    bool SocketWindows::listen(std::size_t maximum_queue_length)
+    {
+        if(!this->bound)
+        {
+            std::cerr << "SocketWindows::listen(...) invoked but the Socket is not bound! Aborting.\n";
+            return false;
+        }
+        int result = ::listen(this->socket_handle, maximum_queue_length);
+        if(result == -1)
+        {
+            std::cerr << "SocketWindows::listen(...) produced error code " << WSAGetLastError() << "\n";
+            return false;
+        }
+        return true;
+    }
+
+    std::optional<IAddress> SocketWindows::accept()
+    {
+        SOCKET other_socket_handle = ::accept(this->socket_handle, nullptr, nullptr);
+        if(other_socket_handle == -1)
+        {
+            AMETHYST_DEBUG_PRINT((std::string("SocketWindows::accept(...) did not connect to a valid socket and produced error code ") + std::to_string(WSAGetLastError())).c_str())
+            return std::nullopt;
+        }
+        sockaddr_in other_socket;
+        socklen_t len = sizeof(other_socket);
+        getpeername(other_socket_handle, (sockaddr*)&other_socket, &len);
+        AddressWindows other_socket_address{other_socket};
+        return {static_cast<IAddress>(other_socket_address)};
+    }
+
+    std::string SocketWindows::receive(std::size_t buffer_size)
+    {
+        char* buffer = new char[buffer_size];
+        ::recv(this->socket_handle, buffer, buffer_size, 0);
+        std::string buffer_copy = buffer;
+        delete[] buffer;
+        return buffer;
     }
 #elif AMETHYST_UNIX
     SocketUnix::SocketUnix(SocketDescriptor descriptor): ISocket(descriptor), socket_handle(-1)
