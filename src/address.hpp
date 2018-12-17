@@ -14,10 +14,10 @@ struct AddressDescriptor
     am::net::internet::protocol internet_protocol;
 };
 
-class IAddress
+class Address
 {
 public:
-    IAddress(AddressDescriptor descriptor, std::string address);
+    Address(AddressDescriptor descriptor, std::string address);
     const AddressDescriptor& get_info() const;
     const std::string& as_string() const;
 protected:
@@ -26,20 +26,18 @@ protected:
 };
 
 #ifdef AMETHYST_WINDOWS
-    class AddressWindows : public IAddress
+    class AddressWindows : public Address
     {
     public:
         AddressWindows(AddressDescriptor descriptor, std::string address);
         AddressWindows(const sockaddr_in& windows_address);
         AddressWindows(const sockaddr_in6& windows_address);
     };
-    using Address = AddressWindows;
 #elif AMETHYST_UNIX
     class AddressUnix : public IAddress
     {
 
     };
-    using Address = AddressUnix;
 #endif
 
 

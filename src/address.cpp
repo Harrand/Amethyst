@@ -6,24 +6,24 @@
 
 AddressDescriptor::AddressDescriptor(am::net::internet::protocol internet_protocol): internet_protocol(internet_protocol){}
 
-IAddress::IAddress(AddressDescriptor descriptor, std::string address): descriptor(descriptor), address(address){}
+Address::Address(AddressDescriptor descriptor, std::string address): descriptor(descriptor), address(address){}
 
-const AddressDescriptor& IAddress::get_info() const
+const AddressDescriptor& Address::get_info() const
 {
     return this->descriptor;
 }
 
-const std::string& IAddress::as_string() const
+const std::string& Address::as_string() const
 {
     return this->address;
 }
 
 #ifdef AMETHYST_WINDOWS
-    AddressWindows::AddressWindows(AddressDescriptor descriptor, std::string address): IAddress(descriptor, address){}
+    AddressWindows::AddressWindows(AddressDescriptor descriptor, std::string address): Address(descriptor, address){}
 
-    AddressWindows::AddressWindows(const sockaddr_in& windows_address): IAddress(AddressDescriptor{am::net::internet::protocol::IPV4}, inet_ntoa(windows_address.sin_addr)){}
+    AddressWindows::AddressWindows(const sockaddr_in& windows_address): Address(AddressDescriptor{am::net::internet::protocol::IPV4}, inet_ntoa(windows_address.sin_addr)){}
 
-    AddressWindows::AddressWindows(const sockaddr_in6& windows_address): IAddress(AddressDescriptor{am::net::internet::protocol::IPV6}, "")
+    AddressWindows::AddressWindows(const sockaddr_in6& windows_address): Address(AddressDescriptor{am::net::internet::protocol::IPV6}, "")
     {
         // 39 characters should appropriate to store an ipv6 address.
         this->address.resize(39);

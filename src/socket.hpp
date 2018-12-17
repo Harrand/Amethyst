@@ -7,6 +7,11 @@
 #include "address.hpp"
 #include <optional>
 
+namespace am::net::transmission
+{
+    constexpr std::size_t default_receive_buffer_size = 2;
+}
+
 struct SocketDescriptor
 {
     SocketDescriptor(am::net::transmission::protocol transmission_protocol = am::net::transmission::protocol::TCP, am::net::internet::protocol ip = am::net::internet::protocol::IPV4);
@@ -21,8 +26,11 @@ public:
     const SocketDescriptor& get_info() const;
     virtual bool bind(unsigned int port) = 0;
     virtual bool listen(std::size_t maximum_queue_length) = 0;
-    virtual std::optional<IAddress> accept() = 0;
-    virtual std::string receive(std::size_t buffer_size) = 0;
+    virtual bool connect(const std::string& address, unsigned int port) = 0;
+    virtual std::optional<Address> accept() = 0;
+    virtual bool send(const std::string& data) = 0;
+    virtual std::optional<std::string> receive(std::size_t buffer_size) = 0;
+    virtual bool unbind() = 0;
 protected:
     SocketDescriptor descriptor;
     bool bound;
@@ -33,12 +41,16 @@ protected:
     {
     public:
         SocketWindows(SocketDescriptor descriptor);
+        ~SocketWindows();
         virtual bool bind(unsigned int port) override;
         virtual bool listen(std::size_t maximum_queue_length = SOMAXCONN) override;
-        virtual std::optional<IAddress> accept() override;
-        virtual std::string receive(std::size_t buffer_size) override;
+        virtual bool connect(const std::string& address, unsigned int port) override;
+        virtual std::optional<Address> accept() override;
+        virtual bool send(const std::string& data) override;
+        virtual std::optional<std::string> receive(std::size_t buffer_size) override;
+        virtual bool unbind() override;
     private:
-        SOCKET socket_handle;
+        SOCKET socket_handle, connection_handle;
     };
     using Socket = SocketWindows;
 #elif AMETHYST_UNIX
