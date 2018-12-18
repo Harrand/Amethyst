@@ -30,8 +30,11 @@ protected:
     {
     public:
         AddressWindows(AddressDescriptor descriptor, std::string address);
+        AddressWindows(const Address& address);
         AddressWindows(const sockaddr_in& windows_address);
         AddressWindows(const sockaddr_in6& windows_address);
+        sockaddr_in get_winsock_address_ipv4(unsigned int port) const;
+        sockaddr_in6 get_winsock_address_ipv6(unsigned int port) const;
     };
 #elif AMETHYST_UNIX
     class AddressUnix : public IAddress

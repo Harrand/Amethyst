@@ -34,6 +34,8 @@ public:
 protected:
     SocketDescriptor descriptor;
     bool bound;
+    std::optional<unsigned int> port;
+    std::optional<Address> destination_address;
 };
 
 #ifdef AMETHYST_WINDOWS

@@ -10,7 +10,7 @@ bool am::detail::is_initialised = false;
 
 SocketDescriptor::SocketDescriptor(am::net::transmission::protocol transmission_protocol, am::net::internet::protocol internet_protocol): transmission_protocol(transmission_protocol), internet_protocol(internet_protocol){}
 
-ISocket::ISocket(SocketDescriptor descriptor): descriptor(descriptor), bound(false)
+ISocket::ISocket(SocketDescriptor descriptor): descriptor(descriptor), bound(false), destination_address(std::nullopt), port(std::nullopt)
 {
     if(!am::detail::is_initialised)
         std::cerr << "ISocket::ISocket(...): Amethyst not initialised.\n";
@@ -72,7 +72,7 @@ const SocketDescriptor& ISocket::get_info() const
                 address.sin6_family = AF_INET6;
                 address.sin6_port = htons(port);
                 //address.sin6_addr.s_addr = inet_addr("0.0.0.0");
-                result = ::bind(this->socket_handle, (sockaddr*)&address, sizeof(address));
+                result = ::bind(this->socket_handle, reinterpret_cast<sockaddr*>(&address), sizeof(address));
             }
                 break;
             case protocol::IPV4:
@@ -82,7 +82,7 @@ const SocketDescriptor& ISocket::get_info() const
                 address.sin_family = AF_INET;
                 address.sin_port = htons(port);
                 address.sin_addr.s_addr = inet_addr("0.0.0.0");
-                result = ::bind(this->socket_handle, (sockaddr*)&address, sizeof(address));
+                result = ::bind(this->socket_handle, reinterpret_cast<sockaddr*>(&address), sizeof(address));
             }
                 break;
         }
@@ -92,6 +92,7 @@ const SocketDescriptor& ISocket::get_info() const
             return false;
         }
         this->bound = true;
+        this->port = {port};
         return true;
     }
 
@@ -114,36 +115,43 @@ const SocketDescriptor& ISocket::get_info() const
     bool SocketWindows::connect(const std::string& address, unsigned int port)
     {
         using namespace am::net::transmission;
-        addrinfo connection_info;
-        addrinfo* response = nullptr;
-        memset(&connection_info, 0, sizeof(connection_info));
-        connection_info.ai_family = AF_UNSPEC;
-        switch(this->get_info().transmission_protocol)
+        if(this->get_info().transmission_protocol == protocol::TCP)
         {
-            case protocol::TCP:
-                connection_info.ai_socktype = SOCK_STREAM;
-                connection_info.ai_protocol = IPPROTO_TCP;
-                break;
-            case protocol::UDP:
-                connection_info.ai_socktype = SOCK_DGRAM;
-                connection_info.ai_protocol = IPPROTO_UDP;
-                break;
-        }
-        if(getaddrinfo(address.c_str(), std::to_string(port).c_str(), &connection_info, &response) != 0)
-        {
-            AMETHYST_DEBUG_PRINT((std::string("SocketWindows::connect(...) could not resolve the target address. It produced error ") + std::to_string(WSAGetLastError()) + ".\n").c_str());
-            return false;
-        }
-        addrinfo* response_pointer = nullptr;
-        for(response_pointer = response; response_pointer != nullptr; response_pointer = response_pointer->ai_next)
-        {
-            if (::connect(this->socket_handle, response_pointer->ai_addr, static_cast<int>(response_pointer->ai_addrlen)) == SOCKET_ERROR)
+            addrinfo connection_info;
+            addrinfo *response = nullptr;
+            memset(&connection_info, 0, sizeof(connection_info));
+            connection_info.ai_family = AF_UNSPEC;
+            switch (this->get_info().transmission_protocol)
             {
-                AMETHYST_DEBUG_PRINT((std::string("SocketWindows::connect(...) could not connect to the target address. It produced error ") +std::to_string(WSAGetLastError()) + ".\n").c_str());
+                case protocol::TCP:
+                    connection_info.ai_socktype = SOCK_STREAM;
+                    connection_info.ai_protocol = IPPROTO_TCP;
+                    break;
+                case protocol::UDP:
+                    connection_info.ai_socktype = SOCK_DGRAM;
+                    connection_info.ai_protocol = IPPROTO_UDP;
+                    break;
+            }
+            if (getaddrinfo(address.c_str(), std::to_string(port).c_str(), &connection_info, &response) != 0)
+            {
+                AMETHYST_DEBUG_PRINT((std::string(
+                        "SocketWindows::connect(...) could not resolve the target address. It produced error ") +
+                                      std::to_string(WSAGetLastError()) + ".\n").c_str());
                 return false;
             }
+            addrinfo *response_pointer = nullptr;
+            for (response_pointer = response; response_pointer != nullptr; response_pointer = response_pointer->ai_next)
+            {
+                if (::connect(this->socket_handle, response_pointer->ai_addr, static_cast<int>(response_pointer->ai_addrlen)) == SOCKET_ERROR)
+                {
+                    AMETHYST_DEBUG_PRINT((std::string("SocketWindows::connect(...) could not connect to the target address. It produced error ") +std::to_string(WSAGetLastError()) + ".\n").c_str());
+                    return false;
+                }
+            }
+            freeaddrinfo(response);
         }
-        freeaddrinfo(response);
+        this->destination_address = {{{this->get_info().internet_protocol}, address}};
+        this->port = {port};
         return true;
     }
 
@@ -159,36 +167,76 @@ const SocketDescriptor& ISocket::get_info() const
         socklen_t len = sizeof(other_socket);
         getpeername(this->connection_handle, (sockaddr*)&other_socket, &len);
         AddressWindows other_socket_address{other_socket};
-        return {static_cast<Address>(other_socket_address)};
+        this->destination_address = {static_cast<Address>(other_socket_address)};
+        return this->destination_address;
     }
 
     bool SocketWindows::send(const std::string& data)
     {
-        int result = ::send(this->socket_handle, data.c_str(), data.size(), 0);
-        if(result == SOCKET_ERROR)
+        using namespace am::net::transmission;
+        if(this->get_info().transmission_protocol == protocol::TCP)
         {
-            AMETHYST_DEBUG_PRINT((std::string("SocketWindows::send(...) could not send data correctly and produced error code ") + std::to_string(WSAGetLastError())).c_str());
-            return false;
+            int result = ::send(this->socket_handle, data.c_str(), data.size(), 0);
+            if (result == SOCKET_ERROR)
+            {
+                AMETHYST_DEBUG_PRINT((std::string(
+                        "SocketWindows::send(...) could not send data correctly (TCP) and produced error code ") +
+                                      std::to_string(WSAGetLastError())).c_str());
+                return false;
+            }
+            return true;
         }
-        return true;
+        else // UDP Send
+        {
+            if(!this->destination_address.has_value() || !this->port.has_value())
+            {
+                // Never connected.
+                AMETHYST_DEBUG_PRINT("SocketWindows::send(...) invoked (UDP) but there is no destination address!");
+                return false;
+            }
+            AddressWindows dest_address = {this->destination_address.value()};
+            sockaddr_in win_address = dest_address.get_winsock_address_ipv4(this->port.value());
+            int result = sendto(this->socket_handle, data.c_str(), data.size(), 0, reinterpret_cast<sockaddr*>(&win_address), sizeof(win_address));
+            if(result == SOCKET_ERROR)
+            {
+                AMETHYST_DEBUG_PRINT((std::string("SocketWindows::send(...) could not send data correctly (UDP) and produced error code") + std::to_string(WSAGetLastError())).c_str());
+                return false;
+            }
+            return true;
+        }
     }
 
     std::optional<std::string> SocketWindows::receive(std::size_t buffer_size)
     {
-        if(this->connection_handle == INVALID_SOCKET)
-        {
-            AMETHYST_DEBUG_PRINT("SocketWindows::receive(...) was invoked but has not accepted an incoming connection. Aborting...");
-            return std::nullopt;
-        }
+        using namespace am::net::transmission;
         std::string buffer;
         buffer.resize(buffer_size);
-        int result = ::recv(this->connection_handle, buffer.data(), buffer_size, MSG_WAITALL);
-        if(result == SOCKET_ERROR)
+        if(this->get_info().transmission_protocol == protocol::TCP)
         {
-            AMETHYST_DEBUG_PRINT((std::string("SocketWindows::receive(...) could not receive data properly and produced error code ") + std::to_string(WSAGetLastError())).c_str());
-            return std::nullopt;
+            if (this->connection_handle == INVALID_SOCKET)
+            {
+                AMETHYST_DEBUG_PRINT(
+                        "SocketWindows::receive(...) was invoked (TCP) but has not accepted an incoming connection. Aborting...");
+                return std::nullopt;
+            }
+            int result = ::recv(this->connection_handle, buffer.data(), buffer_size, MSG_WAITALL);
+            if (result == SOCKET_ERROR)
+            {
+                AMETHYST_DEBUG_PRINT((std::string("SocketWindows::receive(...) could not receive data properly (TCP) and produced error code ") + std::to_string(WSAGetLastError())).c_str());
+                return std::nullopt;
+            }
+            return buffer;
         }
-        return buffer;
+        else // UDP Receive
+        {
+            int result = recvfrom(this->socket_handle, buffer.data(), buffer_size, 0, nullptr, nullptr);
+            if(result == SOCKET_ERROR)
+            {
+                AMETHYST_DEBUG_PRINT((std::string("SocketWindows::receive(...) could not receive data properly (UDP) and produced error code ") + std::to_string(WSAGetLastError())).c_str());
+                return std::nullopt;
+            }
+            return buffer;
+        }
     }
 
     bool SocketWindows::unbind()
