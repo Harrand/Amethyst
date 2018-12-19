@@ -206,6 +206,40 @@ const SocketDescriptor& ISocket::get_info() const
         }
     }
 
+    std::size_t SocketWindows::peek_receive_size()
+    {
+        using namespace am::net::transmission;
+        std::string buffer;
+        if(this->get_info().transmission_protocol == protocol::TCP)
+        {
+            if (this->connection_handle == INVALID_SOCKET)
+            {
+                AMETHYST_DEBUG_PRINT(
+                        "SocketWindows::receive(...) was invoked (TCP) but has not accepted an incoming connection. Aborting...");
+                return 0;
+            }
+            buffer.resize(am::net::consts::maximum_tcp_packet_size);
+            int result = ::recv(this->connection_handle, buffer.data(), buffer.size(), MSG_PEEK);
+            if (result == SOCKET_ERROR)
+            {
+                AMETHYST_DEBUG_PRINT((std::string("SocketWindows::receive(...) could not receive data properly (TCP) and produced error code ") + std::to_string(WSAGetLastError())).c_str());
+                return 0;
+            }
+            return result;
+        }
+        else // UDP Receive
+        {
+            buffer.resize(am::net::consts::maximum_udp_packet_size);
+            int result = recvfrom(this->socket_handle, buffer.data(), buffer.size(), MSG_PEEK, nullptr, nullptr);
+            if(result == SOCKET_ERROR)
+            {
+                AMETHYST_DEBUG_PRINT((std::string("SocketWindows::receive(...) could not receive data properly (UDP) and produced error code ") + std::to_string(WSAGetLastError())).c_str());
+                return 0;
+            }
+            return result;
+        }
+    }
+
     std::optional<std::string> SocketWindows::receive(std::size_t buffer_size)
     {
         using namespace am::net::transmission;
@@ -219,7 +253,7 @@ const SocketDescriptor& ISocket::get_info() const
                         "SocketWindows::receive(...) was invoked (TCP) but has not accepted an incoming connection. Aborting...");
                 return std::nullopt;
             }
-            int result = ::recv(this->connection_handle, buffer.data(), buffer_size, MSG_WAITALL);
+            int result = ::recv(this->connection_handle, buffer.data(), buffer_size, 0);
             if (result == SOCKET_ERROR)
             {
                 AMETHYST_DEBUG_PRINT((std::string("SocketWindows::receive(...) could not receive data properly (TCP) and produced error code ") + std::to_string(WSAGetLastError())).c_str());
@@ -237,6 +271,11 @@ const SocketDescriptor& ISocket::get_info() const
             }
             return buffer;
         }
+    }
+
+    std::optional<std::string> SocketWindows::receive_boundless()
+    {
+        return this->receive(this->peek_receive_size());
     }
 
     bool SocketWindows::unbind()
