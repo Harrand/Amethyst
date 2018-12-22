@@ -11,6 +11,7 @@ int main()
     am::initialise();
     using namespace am::net;
     // UDP Example
+    /*
     Socket socketA{{transmission::protocol::UDP, internet::protocol::IPV4}};
     socketA.bind(80);
     Socket socketB{{transmission::protocol::UDP, internet::protocol::IPV4}};
@@ -26,8 +27,25 @@ int main()
     }
     socketA.unbind();
     socketB.unbind();
+     */
     // End UDP Example
-
+    // Connection Awaiting Example
+    Socket webserver{{}};
+    webserver.bind(80);
+    webserver.listen();
+    while(1)
+    {
+        auto conn = webserver.accept();
+        if(conn.has_value())
+        {
+            std::cout << "found connection.\n";
+            std::string rcv = webserver.receive_boundless().value_or("invalid");
+            std::cout << "data received:\n" << rcv << "\n";
+            break;
+        }
+    }
+    webserver.unbind();
+    // End Connection Awaiting Example
     // TCP Example
     /*
     Socket socketA{{transmission::protocol::TCP, internet::protocol::IPV4}};

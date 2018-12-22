@@ -25,14 +25,14 @@ namespace am
         {
            inline void initialise()
            {
-               AMETHYST_DEBUG_PRINT("Windows am::initialise() invoked.\n");
+               am::debug::print("Windows am::initialise() invoked.\n");
                WSADATA wsadata;
                WSAStartup(MAKEWORD(2,2), &wsadata);
            }
 
           inline void terminate()
           {
-              AMETHYST_DEBUG_PRINT("Windows am::terminate invoked.\n");
+              am::debug::print("Windows am::terminate invoked.\n");
               WSACleanup();
           }
         }
@@ -41,12 +41,12 @@ namespace am
         {
             inline void initialise()
             {
-               AMETHYST_DEBUG_PRINT("Unix am::initialise invoked.\n");
+               am::debug::print("Unix am::initialise invoked.\n");
             }
 
             inline void terminate()
             {
-                AMETHYST_DEBUG_PRINT("Unix am::terminate invoked.\n");
+                am::debug::print("Unix am::terminate invoked.\n");
             }
         }
 #endif
