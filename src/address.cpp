@@ -43,7 +43,7 @@ const std::string& Address::as_string() const
         return result;
     }
 
-    sockaddr_in6 AddressWindows::get_winsock_address_ipv6(unsigned int port) const
+    sockaddr_in6 AddressWindows::get_winsock_address_ipv6([[maybe_unused]] unsigned int port) const
     {
         sockaddr_in6 result;
         return result;

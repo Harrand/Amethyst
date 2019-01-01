@@ -4,13 +4,12 @@
 
 #include "socket.hpp"
 #include "amethyst.hpp"
-#include <iostream>
 
 bool am::detail::is_initialised = false;
 
 SocketDescriptor::SocketDescriptor(am::net::transmission::protocol transmission_protocol, am::net::internet::protocol internet_protocol): transmission_protocol(transmission_protocol), internet_protocol(internet_protocol){}
 
-ISocket::ISocket(SocketDescriptor descriptor): descriptor(descriptor), bound(false), destination_address(std::nullopt), port(std::nullopt)
+ISocket::ISocket(SocketDescriptor descriptor): descriptor(descriptor), bound(false), port(std::nullopt), destination_address(std::nullopt)
 {
     if(!am::detail::is_initialised)
         std::cerr << "ISocket::ISocket(...): Amethyst not initialised.\n";
@@ -50,8 +49,9 @@ const SocketDescriptor& ISocket::get_info() const
                 break;
         }
         this->socket_handle = socket(af, type, protocol);
-        //AMETHYST_DEBUG_PRINT((std::string("SocketWindows::SocketWindows(...) Initialisation Error Code: ") + std::to_string(WSAGetLastError())).c_str());
-        am::debug::print("SocketWindows::SocketWindows(...) Initialisation Error Code: ", WSAGetLastError(), "\n");
+        auto error = WSAGetLastError();
+        if(error != 0)
+            am::debug::print("SocketWindows::SocketWindows(...) Initialisation Error Code: ", error, "\n");
     }
 
     SocketWindows::~SocketWindows()
@@ -75,8 +75,9 @@ const SocketDescriptor& ISocket::get_info() const
                 //address.sin6_addr.s_addr = inet_addr("0.0.0.0");
                 result = ::bind(this->socket_handle, reinterpret_cast<sockaddr*>(&address), sizeof(address));
             }
-                break;
+            break;
             case protocol::IPV4:
+            default:
             {
                 sockaddr_in address;
                 memset(&address, 0, sizeof(address));
@@ -85,7 +86,7 @@ const SocketDescriptor& ISocket::get_info() const
                 address.sin_addr.s_addr = inet_addr("0.0.0.0");
                 result = ::bind(this->socket_handle, reinterpret_cast<sockaddr*>(&address), sizeof(address));
             }
-                break;
+            break;
         }
         if(result == -1)
         {
@@ -162,7 +163,7 @@ const SocketDescriptor& ISocket::get_info() const
     std::optional<Address> SocketWindows::accept()
     {
         this->connection_handle = ::accept(this->socket_handle, nullptr, nullptr);
-        if(this->connection_handle == -1)
+        if(this->connection_handle == INVALID_SOCKET)
         {
             //AMETHYST_DEBUG_PRINT((std::string("SocketWindows::accept(...) did not connect to a valid socket and produced error code ") + std::to_string(WSAGetLastError())).c_str())
             am::debug::print("SocketWindows::accept(...) did not connect to a valid socket and produced error code: ", WSAGetLastError(), "\n");

@@ -3,8 +3,6 @@
 //
 #include "socket.hpp"
 #include "amethyst.hpp"
-#include <iostream>
-#include <windows.h>
 
 int main()
 {
@@ -71,4 +69,3 @@ int main()
     // End TCP Example
     am::terminate();
 }
-
